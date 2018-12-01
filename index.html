@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<style>
+		td {
+			height: 5px;
+			width: 5px;
+		}
+
+		td.dead {
+			background-color: #aa0000;
+		}
+
+		td.alive {
+			background-color: #00aa00;
+		}
+	</style>
+</head>
+<body>
+	<span>
+		<label>Rows:<input type="number" id="columns" value="50"></input></label>
+		<label>Columns:<input type="number" id="rows" value="50"></input></label>
+		<label>Tick Period (ms):<input type="number" id="period" value="10"></input></label>
+		<label>Renderer:
+			<select id="renderer" value="50">
+				<option value="canvas">Canvas</option>
+				<option value="table">Table</option>
+			</select>
+		</label>
+		<button onclick="go();">Go!</button>
+	</span>
+	<div id="cell-grid"></div>
+</body>
+<script>
+"use strict";
+
+function Cell(state, coord) {
+	let _state = state;
+	let _coord = coord;
+	let _neighbours;
+	let _previousState;
+	let _nextState;
+
+	function getState() {
+		return _state;
+	}
+
+	function getPreviousState() {
+		return _previousState;
+	}
+
+	function getCoordinate() {
+		return _coord;
+	}
+
+	function setNextState() {
+		const aliveCellNeighbours = _neighbours.filter((neighbour) => !!neighbour.getState().alive);
+		const aliveNeighbourCount = aliveCellNeighbours.length;
+
+		const deadCellNeighbours = _neighbours.filter((neighbour) => !neighbour.getState().alive);
+		const deadNeighbourCount = deadCellNeighbours.length;
+
+		let nextState = _state;
+		if (aliveNeighbourCount === 2 || aliveNeighbourCount === 3) {
+			nextState = { alive: false };
+		} else if (deadNeighbourCount === 3) {
+			nextState = { alive: true };
+		}
+
+		_nextState = nextState;
+	}
+
+	function updateToNextState() {
+		_previousState = _state;
+		_state = _nextState;
+		_nextState = null;
+	}
+
+	function setNeighbours(neighbours) {
+		_neighbours = neighbours;
+	}
+
+	return {
+		getState: getState,
+		setNextState: setNextState,
+		getCoordinate: getCoordinate,
+		updateToNextState: updateToNextState,
+		setNeighbours: setNeighbours,
+		getPreviousState: getPreviousState
+	};
+}
+
+function Grid(cellArray) {
+	const _cells = cellArray;
+	const _cellRowCount = _cells.length;
+	const _cellColumnCount = _cells[0].length;
+
+	function getNeighboringCells(i, j) {
+		const iLessOne = i - 1;
+		const iPlussOne = i + 1;
+		const jLessOne = j - 1;
+		const jPlussOne = j + 1;
+
+		const actualNeighbours = [];
+
+		const possibleNeighbourCoordinates = [
+			{ i: iLessOne, j: jLessOne},
+			{ i: iLessOne, j: j},
+			{ i: iLessOne, j: jPlussOne},
+			{ i: i, j: jLessOne},
+			{ i: i, j: jPlussOne},
+			{ i: iPlussOne, j: jLessOne},
+			{ i: iPlussOne, j: j},
+			{ i: iPlussOne, j: jPlussOne},
+		];
+
+		// throw out any negative indices
+		const neighbourCoordinates = possibleNeighbourCoordinates.filter((coord) => coord.i >= 0 && coord.j >= 0);
+
+		neighbourCoordinates.forEach((coord) => {
+			const possibleRow = _cells[coord.i];
+			const possibleCell = possibleRow && possibleRow[coord.j];
+			if (possibleCell) {
+				actualNeighbours.push(possibleCell);
+			}
+		});
+
+		return actualNeighbours;
+	}
+
+	function doSomethingToEachCell(cellAction) {
+		for(let i = 0; i < _cellRowCount; i += 1) {
+			for (let j = 0; j < _cellColumnCount; j += 1) {
+				cellAction(_cells[i][j], i, j);
+			}
+		}
+	}
+
+	function init() {
+		doSomethingToEachCell(function setNeighbours(cell, i, j) {
+			const cellNeighbours = getNeighboringCells(i, j);
+			cell.setNeighbours(cellNeighbours);
+		});
+	}
+
+	function tick() {
+		doSomethingToEachCell(function setNextState(cell) {
+			cell.setNextState();
+		});
+
+		doSomethingToEachCell(function appllyNextState(cell) {
+			cell.updateToNextState();
+		});
+	}
+
+	function getCells() {
+		return _cells;
+	}
+
+	function getRowCount() {
+		return _cellRowCount;
+	}
+
+	function getColumnCount() {
+		return _cellColumnCount;
+	}
+
+	init();
+
+	return {
+		tick: tick,
+		getCells: getCells,
+		getRowCount: getRowCount,
+		getColumnCount: getColumnCount
+	};
+}
+
+function GridTableRenderer(grid) {
+	const _gridCells = grid.getCells();
+	const _cellRowCount = grid.getRowCount();
+	const _cellColumnCount = grid.getColumnCount();
+
+	const _cellElementArray = [];
+
+	function createElement() {
+		const table = document.createElement("table");
+		for(let i = 0; i < _cellRowCount; i += 1) {
+			const rowElement = document.createElement("tr");
+			const rowArray = [];
+
+			for (let j = 0; j < _cellColumnCount; j += 1) {
+				const cellElement = document.createElement("td");
+				const cellClass = getCellClassName(_gridCells[i][j]);
+				cellElement.className = cellClass;
+
+				rowElement.appendChild(cellElement);
+				rowArray.push(cellElement);
+			}
+
+			table.appendChild(rowElement);
+			_cellElementArray.push(rowArray);
+		}
+		return table;
+	}
+
+	function updateElement() {
+		for (let i = 0; i < _cellRowCount; i += 1) {
+			for (let j = 0; j < _cellColumnCount; j += 1) {
+				const cell = _gridCells[i][j];
+				const htmlElement = _cellElementArray[i][j];
+
+				if (htmlElement) {
+					const newClassName = getCellClassName(cell);
+					const existingClassName = htmlElement.className;
+
+					if (newClassName !== existingClassName) {
+						htmlElement.className = newClassName;
+					}
+				}
+			}
+		}
+	}
+	
+	function getCellClassName(cell) {
+		const cellClass = cell.getState().alive ? "alive" : "dead";
+		return cellClass;
+	}
+	
+	return {
+		createElement: createElement,
+		updateElement: updateElement
+	};
+}
+
+function GridCanvasRenderer(grid) {
+	const cellSize = 10;
+	const innerCellSize = cellSize - 2;
+	
+	let _canvasElement;
+
+	const _gridCells = grid.getCells();
+	const _cellRowCount = grid.getRowCount();
+	const _cellColumnCount = grid.getColumnCount();
+
+	function createElement() {
+		_canvasElement = document.createElement("canvas");
+		_canvasElement.height = _cellRowCount * cellSize;
+		_canvasElement.width = _cellColumnCount * cellSize;
+
+		// Paint the whole thing white to save drawing a border on each update
+		const canvasContext = _canvasElement.getContext("2d");
+		canvasContext.fillStyle = "#ffffff";
+		canvasContext.fillRect(0, 0, _canvasElement.width, _canvasElement.height);
+		updateElement();
+		return _canvasElement;
+	}
+
+	function updateElement() {
+		const canvasContext = _canvasElement.getContext("2d");
+		for (let i = 0; i < _cellRowCount; i += 1) {
+			for (let j = 0; j < _cellColumnCount; j += 1) {
+				const cell = _gridCells[i][j];
+				const isAlive = cell.getState().alive;
+				const previousState = cell.getPreviousState();
+				// Only bother updating if the state changes
+				if (!previousState || (previousState.alive !== isAlive)) {
+					const x = j * cellSize;
+					const y = i * cellSize;
+					canvasContext.fillStyle = isAlive ? "#00aa00" : "#aa0000";
+					canvasContext.fillRect(x + 1, y + 1, innerCellSize, innerCellSize);
+				}
+			}
+		}
+	}
+
+	return {
+		createElement: createElement,
+		updateElement: updateElement
+	};
+}
+
+const rowInput = document.getElementById("rows");
+const columnInput = document.getElementById("columns");
+const periodInput = document.getElementById("period");
+const rendererInput = document.getElementById("renderer");
+const container = document.getElementById("cell-grid");
+let gridElement;
+let gridUpdateIntervalRef;
+
+function go() {
+
+	function getRandomIntInclusive(min, max) {
+		min = Math.ceil(min);
+		max = Math.floor(max);
+		return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive 
+	}
+
+	function getRandomRowOfCells(rowIndex) {
+		const cellArray = [];
+		for (let j = 0; j < colCount; j += 1) {
+			const randomAlive = !!getRandomIntInclusive(0, 1);
+			cellArray.push(Cell({ alive: randomAlive }, { i: rowIndex, j: j }));
+		}
+		return cellArray;
+	}
+
+	function getRandomGridOfCells() {
+		const gridArray = [];
+		for (let i = 0; i < rowCount; i += 1) {
+			const rowArray = getRandomRowOfCells(i);
+			gridArray.push(rowArray);
+		}
+		return gridArray;
+	}
+
+	const rowCount = parseInt(rowInput.value);
+	const colCount = parseInt(columnInput.value);
+	const interval = parseInt(periodInput.value);
+	const rendererString = rendererInput.value;
+
+	if (gridElement) {
+		container.removeChild(gridElement);
+	}
+
+	if (gridUpdateIntervalRef) {
+		clearInterval(gridUpdateIntervalRef);
+		gridUpdateIntervalRef = null;
+	}
+
+	const initialCellArray = getRandomGridOfCells();
+	const grid = Grid(initialCellArray);
+
+	const rendererToUse = rendererString === "canvas" ? GridCanvasRenderer : GridTableRenderer;
+
+	const gridRenderer = rendererToUse(grid);
+	gridElement = gridRenderer.createElement();
+	container.appendChild(gridElement);
+
+	gridUpdateIntervalRef = setInterval(() => {
+		grid.tick();
+		gridRenderer.updateElement();
+	}, interval);
+};
+</script>
+</html>
