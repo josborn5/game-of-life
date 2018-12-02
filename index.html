@@ -279,6 +279,36 @@ function GridCanvasRenderer(grid) {
 	};
 }
 
+function RandomCellGenerator() {
+	function getRandomIntInclusive(min, max) {
+		min = Math.ceil(min);
+		max = Math.floor(max);
+		return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive 
+	}
+
+	function getRandomRowOfCells(rowIndex, colCount) {
+		const cellArray = [];
+		for (let j = 0; j < colCount; j += 1) {
+			const randomAlive = !!getRandomIntInclusive(0, 1);
+			cellArray.push(Cell({ alive: randomAlive }, { i: rowIndex, j: j }));
+		}
+		return cellArray;
+	}
+
+	function getCells(rowCount, colCount) {
+		const gridArray = [];
+		for (let i = 0; i < rowCount; i += 1) {
+			const rowArray = getRandomRowOfCells(i, colCount);
+			gridArray.push(rowArray);
+		}
+		return gridArray;
+	}
+
+	return {
+		getCells: getCells
+	};
+}
+
 const rowInput = document.getElementById("rows");
 const columnInput = document.getElementById("columns");
 const periodInput = document.getElementById("period");
@@ -288,30 +318,6 @@ let gridElement;
 let gridUpdateIntervalRef;
 
 function go() {
-
-	function getRandomIntInclusive(min, max) {
-		min = Math.ceil(min);
-		max = Math.floor(max);
-		return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive 
-	}
-
-	function getRandomRowOfCells(rowIndex) {
-		const cellArray = [];
-		for (let j = 0; j < colCount; j += 1) {
-			const randomAlive = !!getRandomIntInclusive(0, 1);
-			cellArray.push(Cell({ alive: randomAlive }, { i: rowIndex, j: j }));
-		}
-		return cellArray;
-	}
-
-	function getRandomGridOfCells() {
-		const gridArray = [];
-		for (let i = 0; i < rowCount; i += 1) {
-			const rowArray = getRandomRowOfCells(i);
-			gridArray.push(rowArray);
-		}
-		return gridArray;
-	}
 
 	const rowCount = parseInt(rowInput.value);
 	const colCount = parseInt(columnInput.value);
@@ -327,7 +333,8 @@ function go() {
 		gridUpdateIntervalRef = null;
 	}
 
-	const initialCellArray = getRandomGridOfCells();
+	const cellGenerator = RandomCellGenerator();
+	const initialCellArray = cellGenerator.getCells(rowCount, colCount);
 	const grid = Grid(initialCellArray);
 
 	const rendererToUse = rendererString === "canvas" ? GridCanvasRenderer : GridTableRenderer;
