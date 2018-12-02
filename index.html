@@ -279,6 +279,31 @@ function GridCanvasRenderer(grid) {
 	};
 }
 
+function CellGenerator() {
+	function getCells(inputString) {
+		const cleanInputString = inputString.trim();
+		const rowStrings = cleanInputString.split("\n");
+		const cellArray = [];
+		for (let i = 0; i < rowStrings.length; i += 1) {
+			const rowString = rowStrings[i];
+			const singleRow = [];
+			for (let j = 0; j < rowString.length; j += 1) {
+				const cellStatus = rowString[j] === "1";
+				const cell = Cell({ alive: cellStatus }, { i: i, j: j });
+				singleRow.push(cell);
+			}
+
+			cellArray.push(singleRow);
+		}
+
+		return cellArray;
+	}
+
+	return {
+		getCells: getCells
+	};
+}
+
 function RandomCellGenerator() {
 	function getRandomIntInclusive(min, max) {
 		min = Math.ceil(min);
@@ -286,22 +311,25 @@ function RandomCellGenerator() {
 		return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive 
 	}
 
-	function getRandomRowOfCells(rowIndex, colCount) {
-		const cellArray = [];
-		for (let j = 0; j < colCount; j += 1) {
-			const randomAlive = !!getRandomIntInclusive(0, 1);
-			cellArray.push(Cell({ alive: randomAlive }, { i: rowIndex, j: j }));
+	function getRandomRowString(colCount) {
+		let rowString = "";
+		for (let i = 0; i < colCount; i += 1) {
+			const randomAlive = getRandomIntInclusive(0, 1).toString();
+			rowString += randomAlive;
 		}
-		return cellArray;
+		return rowString;
 	}
 
 	function getCells(rowCount, colCount) {
-		const gridArray = [];
+		let cellString = "";
 		for (let i = 0; i < rowCount; i += 1) {
-			const rowArray = getRandomRowOfCells(i, colCount);
-			gridArray.push(rowArray);
+			const rowString = getRandomRowString(colCount);
+			cellString += rowString + "\n";
 		}
-		return gridArray;
+
+		const cellGenerator = CellGenerator();
+		const cellArray = cellGenerator.getCells(cellString);
+		return cellArray;
 	}
 
 	return {
