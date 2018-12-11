@@ -122,29 +122,24 @@ function Grid(cellArray) {
 		const jLessOne = j - 1;
 		const jPlussOne = j + 1;
 
-		const actualNeighbours = [];
+		const maxIIndex = _cellRowCount - 1;
+		const maxJIndex = _cellColumnCount - 1;
 
-		const possibleNeighbourCoordinates = [
-			{ i: iLessOne, j: jLessOne},
-			{ i: iLessOne, j: j},
-			{ i: iLessOne, j: jPlussOne},
-			{ i: i, j: jLessOne},
-			{ i: i, j: jPlussOne},
-			{ i: iPlussOne, j: jLessOne},
-			{ i: iPlussOne, j: j},
-			{ i: iPlussOne, j: jPlussOne},
+		const safeILessOne = (iLessOne < 0) ? maxIIndex : iLessOne;
+		const safeIPlussOne = (iPlussOne >= maxIIndex) ? 0 : iPlussOne;
+		const safeJLessOne = (jLessOne < 0) ? maxJIndex : jLessOne;
+		const safeJPlussOne = (jPlussOne >= maxJIndex) ? 0 : jPlussOne;
+
+		const actualNeighbours = [
+			_cells[safeILessOne][safeJLessOne],
+			_cells[safeILessOne][j],
+			_cells[safeILessOne][safeJPlussOne],
+			_cells[i][safeJLessOne],
+			_cells[i][safeJPlussOne],
+			_cells[safeIPlussOne][safeJLessOne],
+			_cells[safeIPlussOne][j],
+			_cells[safeIPlussOne][safeJPlussOne],
 		];
-
-		// throw out any negative indices
-		const neighbourCoordinates = possibleNeighbourCoordinates.filter((coord) => coord.i >= 0 && coord.j >= 0);
-
-		neighbourCoordinates.forEach((coord) => {
-			const possibleRow = _cells[coord.i];
-			const possibleCell = possibleRow && possibleRow[coord.j];
-			if (possibleCell) {
-				actualNeighbours.push(possibleCell);
-			}
-		});
 
 		return actualNeighbours;
 	}
