@@ -14,21 +14,42 @@
 		td.alive {
 			background-color: #00aa00;
 		}
+
+		.hidden {
+			display: none;
+		}
 	</style>
 </head>
 <body>
-	<span>
-		<label>Rows:<input type="number" id="columns" value="50"></input></label>
-		<label>Columns:<input type="number" id="rows" value="50"></input></label>
-		<label>Tick Period (ms):<input type="number" id="period" value="10"></input></label>
-		<label>Renderer:
-			<select id="renderer" value="50">
-				<option value="canvas">Canvas</option>
-				<option value="table">Table</option>
-			</select>
-		</label>
-		<button onclick="go();">Go!</button>
-	</span>
+	<div>
+		<div id="input">
+			<button onclick="setRandomMode();">Random</button>
+			<button onclick="setTextMode();">Text</button>
+			<button onclick="setCanvasMode();">Canvas</button>
+			<div id="input-random">
+				<span>
+					<label>Rows:<input type="number" id="columns" value="50"></input></label>
+					<label>Columns:<input type="number" id="rows" value="50"></input></label>
+				</span>
+			</div>
+			<div id="input-text">
+				<textarea id="input-text-area"></textarea>
+			</div>
+			<div id="input-canvas">
+				<canvas id="input-canvas-ele"></canvas>
+			</div>
+		</div>
+		<span>
+			<label>Tick Period (ms):<input type="number" id="period" value="10"></input></label>
+			<label>Renderer:
+				<select id="renderer" value="50">
+					<option value="canvas">Canvas</option>
+					<option value="table">Table</option>
+				</select>
+			</label>
+			<button onclick="go();">Go!</button>
+		</span>
+	</div>
 	<div id="cell-grid"></div>
 </body>
 <script>
@@ -304,7 +325,7 @@ function CellGenerator() {
 	};
 }
 
-function RandomCellGenerator() {
+function RandomStringGenerator() {
 	function getRandomIntInclusive(min, max) {
 		min = Math.ceil(min);
 		max = Math.floor(max);
@@ -320,20 +341,18 @@ function RandomCellGenerator() {
 		return rowString;
 	}
 
-	function getCells(rowCount, colCount) {
+	function getString(rowCount, colCount) {
 		let cellString = "";
 		for (let i = 0; i < rowCount; i += 1) {
 			const rowString = getRandomRowString(colCount);
 			cellString += rowString + "\n";
 		}
 
-		const cellGenerator = CellGenerator();
-		const cellArray = cellGenerator.getCells(cellString);
-		return cellArray;
+		return cellString;
 	}
 
 	return {
-		getCells: getCells
+		getString: getString
 	};
 }
 
@@ -342,13 +361,65 @@ const columnInput = document.getElementById("columns");
 const periodInput = document.getElementById("period");
 const rendererInput = document.getElementById("renderer");
 const container = document.getElementById("cell-grid");
+const inputControls = {
+	random: {
+		div: document.getElementById("input-random"),
+		rowInput: document.getElementById("rows"),
+		columnInput: document.getElementById("columns")
+	},
+	text: {
+		div: document.getElementById("input-text"),
+		textArea: document.getElementById("input-text-area")
+	},
+	canvas: {
+		div: document.getElementById("input-canvas"),
+		canvas: document.getElementById("input-canvas-ele")
+	}
+};
 let gridElement;
 let gridUpdateIntervalRef;
+let inputMode;
+
+function setRandomMode() {
+	inputMode = "random";
+
+	inputControls.random.div.className = "";
+	inputControls.text.div.className = "hidden";
+	inputControls.canvas.div.className = "hidden";
+}
+
+function setTextMode() {
+	inputMode = "text";
+
+	inputControls.random.div.className = "hidden";
+	inputControls.text.div.className = "";
+	inputControls.canvas.div.className = "hidden";
+}
+
+function setCanvasMode() {
+	inputMode = "canvas";
+
+	inputControls.random.div.className = "hidden";
+	inputControls.text.div.className = "hidden";
+	inputControls.canvas.div.className = "";
+}
+
+function getRandomInput() {
+	const rowCount = parseInt(inputControls.random.rowInput.value);
+	const colCount = parseInt(inputControls.random.columnInput.value);
+
+	const inputGenerator = RandomStringGenerator();
+	const inputString = inputGenerator.getString(rowCount, colCount);
+
+	return inputString;
+}
+
+function getTextInput() {
+	const inputString = inputControls.text.textArea.value;
+	return inputString;
+}
 
 function go() {
-
-	const rowCount = parseInt(rowInput.value);
-	const colCount = parseInt(columnInput.value);
 	const interval = parseInt(periodInput.value);
 	const rendererString = rendererInput.value;
 
@@ -361,8 +432,22 @@ function go() {
 		gridUpdateIntervalRef = null;
 	}
 
-	const cellGenerator = RandomCellGenerator();
-	const initialCellArray = cellGenerator.getCells(rowCount, colCount);
+	let inputStringFunction;
+	switch(inputMode) {
+		case "random":
+			inputStringFunction = getRandomInput;
+			break;
+		case "text":
+			inputStringFunction = getTextInput;
+			break;
+		default:
+			inputStringFunction = function() { return "..1..1.1.1.1111."; };
+			break;
+	}
+
+	const inputString = inputStringFunction();
+	const cellGenerator = CellGenerator();
+	const initialCellArray = cellGenerator.getCells(inputString);
 	const grid = Grid(initialCellArray);
 
 	const rendererToUse = rendererString === "canvas" ? GridCanvasRenderer : GridTableRenderer;
@@ -376,5 +461,7 @@ function go() {
 		gridRenderer.updateElement();
 	}, interval);
 };
+
+setRandomMode();
 </script>
 </html>
